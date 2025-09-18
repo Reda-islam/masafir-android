@@ -2,8 +2,9 @@ name: Android CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -17,28 +18,39 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      # نثبتو Gradle بلا Wrapper
-      - name: Set up Gradle (no wrapper)
-        uses: gradle/actions/setup-gradle@v3
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages (platform 34 + build-tools)
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      # كنستعمل Gradle بلا wrapper
+      - name: Build Debug APK
+        uses: gradle/gradle-build-action@v3
         with:
           gradle-version: 8.7
-
-      - name: Build Debug APK
-        run: gradle :app:assembleDebug
-
-      - name: Build Release AAB (unsigned)
-        run: gradle :app:bundleRelease
+          arguments: :app:assembleDebug
 
       - name: Upload Debug APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
+          name: app-debug-apk
           path: app/build/outputs/apk/debug/*.apk
 
+      # اختياري: بْنِي AAB ديال الريليز غير موقّع
+      - name: Build Release AAB (unsigned)
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 8.7
+          arguments: :app:bundleRelease
+
       - name: Upload Release AAB
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: release-aab
+          name: app-release-aab
           path: app/build/outputs/bundle/release/*.aab
