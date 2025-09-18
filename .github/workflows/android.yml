@@ -1,0 +1,46 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # ابنِ الـ APK (Debug) و الـ AAB (Release)
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Build Release AAB (unsigned)
+        run: ./gradlew bundleRelease
+
+      # ارفع المخرجات كـ Artifacts
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Masafir-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Masafir-release-aab
+          path: app/build/outputs/bundle/release/*.aab
