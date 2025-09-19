@@ -1,21 +1,11 @@
 name: Android CI
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    # نوصلو كلمات السر للـ Gradle عبر ENV
-    env:
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -32,8 +22,9 @@ jobs:
 
       - name: Restore keystore from BASE64
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
-          ls -lh release-keystore.jks
+          echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
@@ -42,13 +33,11 @@ jobs:
 
       - name: Build Release (APK & AAB)
         run: |
-          ./gradlew :app:assembleRelease
-          ./gradlew :app:bundleRelease
+          gradle :app:assembleRelease
+          gradle :app:bundleRelease
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-outputs
-          path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+          name: app-build
+          path: app/build/outputs/
