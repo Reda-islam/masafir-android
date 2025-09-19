@@ -24,14 +24,17 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # رجّع keystore من السرّ BASE64 إلى ملف JKS (ضرورية قبل التوقيع)
+      # رجّع keystore من BASE64
       - name: Restore keystore from BASE64
         run: |
           printf "%s" "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
           ls -l release-keystore.jks
 
-      - name: Setup Gradle
+      # ثبّت Gradle 8.7 (pin)
+      - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
 
       - name: Build Debug APK
         run: gradle :app:assembleDebug
