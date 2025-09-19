@@ -1,53 +1,40 @@
-name: Android CI
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      # رجّع ملف keystore من السر BASE64
-      - name: Restore keystore (from BASE64)
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
-          ls -l release-keystore.jks
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      # ⚠️ هنا كنمرّرو كلمات السر والـ alias كـ ENV
-      - name: Build Release (APK + AAB)
+- name: Diagnose keystore passwords & alias
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          gradle :app:clean
-          gradle :app:assembleRelease
-          gradle :app:bundleRelease
+          set -euo pipefail
 
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-outputs
-          path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+          echo "1) Checking store password..."
+          # هادي كتطيح إلا كان storepass غلط
+          keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" >/dev/null
+          echo "   ✅ storepass OK"
+
+          echo "2) Listing aliases (to auto-detect if needed)..."
+          aliases=$(keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" \
+                     | sed -n 's/^Alias name: //p' | tr -d '\r')
+          echo "   Found aliases: $aliases"
+
+          # إذا KEY_ALIAS ما معمّرش، ناخدو أول alias من اللائحة
+          sel_alias="${KEY_ALIAS:-}"
+          if [ -z "$sel_alias" ]; then
+            sel_alias=$(echo "$aliases" | head -n1)
+            echo "   Using detected alias: $sel_alias"
+          else
+            echo "   Using provided KEY_ALIAS: $sel_alias"
+          fi
+
+          if [ -z "$sel_alias" ]; then
+            echo "❌ No alias found in keystore. Make sure the keystore is valid."
+            exit 1
+          fi
+
+          echo "3) Checking key password for alias: $sel_alias"
+          # هنا نتحقق من keypass. إذا مختلف عن storepass واستعملتيه غلط، هادي غادي تطيح.
+          keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" -alias "$sel_alias" -keypass "$KEY_PASSWORD" >/dev/null \
+            && echo "   ✅ keypass OK" \
+            || (echo "❌ keypass incorrect for alias '$sel_alias'"; exit 1)
+
+          # نخزنو الـ alias لخطوات لاحقة (اختياري)
+          echo "KEY_ALIAS=$sel_alias" >> $GITHUB_ENV
