@@ -15,36 +15,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages (platform 34 + build-tools)
+      # رجّع ملف keystore من السر BASE64
+      - name: Restore keystore (from BASE64)
         run: |
-          sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
+          ls -l release-keystore.jks
 
-      # نفكّو keystore من السر الطويل BASE64
-      - name: Restore keystore from BASE64 secret
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
-
-      # Gradle (بدون gradlew)
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # بنِّي Release موقّع (APK + AAB)
-      - name: Build Release (APK & AAB)
+      # ⚠️ هنا كنمرّرو كلمات السر والـ alias كـ ENV
+      - name: Build Release (APK + AAB)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          gradle --version
           gradle :app:clean
           gradle :app:assembleRelease
           gradle :app:bundleRelease
 
-      # ارفع المخرجات
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
