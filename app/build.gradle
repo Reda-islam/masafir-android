@@ -1,8 +1,3 @@
-plugins {
-    id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
-}
-
 android {
     namespace "com.masafir.app"
     compileSdk 34
@@ -15,10 +10,24 @@ android {
         versionName "1.0"
     }
 
+    signingConfigs {
+        release {
+            // هاد الملف غادي يتولد فـ CI من KEYSORE_BASE64
+            storeFile file("${rootDir}/release-keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // خليه كما هو أو بلا توقيع
         }
     }
 
@@ -29,10 +38,4 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-}
-
-dependencies {
-    implementation "androidx.core:core-ktx:1.12.0"
-    implementation "androidx.appcompat:appcompat:1.6.1"
-    implementation "com.google.android.material:material:1.9.0"
 }
