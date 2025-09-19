@@ -15,42 +15,47 @@ android {
         versionName "1.0"
     }
 
-    // التوقيع بالـ keystore اللي كنسترجعوه فـ CI
+    // إعدادات التوقيع للريليز (تشد القيم من ENV اللي جاية من Secrets)
     signingConfigs {
         release {
-            storeFile file("${rootDir}/release-keystore.jks")
+            // keystore كيتفكّ فجازة الـ CI فجدور الريبو
+            storeFile file("../release-keystore.jks")
             storePassword System.getenv("KEYSTORE_PASSWORD")
             keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD") // ممكن تكون نفسها ديال storepass
+            keyPassword System.getenv("KEY_PASSWORD")
         }
     }
 
     buildTypes {
         release {
+            // فعِّل التوقيع
+            signingConfig signingConfigs.release
+
+            // خلّيهم هكا باش ما يتفعّلوش R8/Shrink لحدّ الآن
             minifyEnabled false
             shrinkResources false
-            signingConfig signingConfigs.release
+
+            debuggable false
         }
         debug {
-            // بلا توقيع خاص
+            // debug ما كنوقّعوهش
         }
     }
 
+    // (اختياري) لو بغيتي تفعّل Java 17/Kotlin options
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "17"
-    }
-    buildFeatures {
-        viewBinding true
+        jvmTarget = '17'
     }
 }
 
+// زِد/خلّي dependencies ديالك هنا كالمعتاد
 dependencies {
-    implementation "androidx.core:core-ktx:1.13.1"
-    implementation "androidx.appcompat:appcompat:1.7.0"
-    implementation "com.google.android.material:material:1.12.0"
-    implementation "androidx.activity:activity-ktx:1.9.2"
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 }
