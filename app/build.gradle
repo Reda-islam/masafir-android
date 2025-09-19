@@ -15,47 +15,43 @@ android {
         versionName "1.0"
     }
 
-    // إعدادات التوقيع للريليز (تشد القيم من ENV اللي جاية من Secrets)
     signingConfigs {
         release {
-            // keystore كيتفكّ فجازة الـ CI فجدور الريبو
-            storeFile file("../release-keystore.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
+            storeFile file("release-keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+            keyAlias System.getenv("KEY_ALIAS") ?: ""
+            keyPassword System.getenv("KEY_PASSWORD") ?: ""
         }
     }
 
     buildTypes {
         release {
-            // فعِّل التوقيع
-            signingConfig signingConfigs.release
-
-            // خلّيهم هكا باش ما يتفعّلوش R8/Shrink لحدّ الآن
             minifyEnabled false
             shrinkResources false
-
-            debuggable false
+            signingConfig signingConfigs.release
         }
         debug {
-            // debug ما كنوقّعوهش
+            // debug build stays unsigned
         }
     }
 
-    // (اختياري) لو بغيتي تفعّل Java 17/Kotlin options
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
     kotlinOptions {
-        jvmTarget = '17'
+        jvmTarget = "17"
     }
 }
 
-// زِد/خلّي dependencies ديالك هنا كالمعتاد
 dependencies {
-    implementation 'androidx.core:core-ktx:1.13.1'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "com.google.android.material:material:1.11.0"
+    implementation "androidx.constraintlayout:constraintlayout:2.1.4"
+
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.test.ext:junit:1.1.5"
+    androidTestImplementation "androidx.test.espresso:espresso-core:3.5.1"
 }
