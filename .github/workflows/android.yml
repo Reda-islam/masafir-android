@@ -11,6 +11,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # نصدر الأسرار كـ ENV باش Gradle يلقاهم
+    env:
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,13 +30,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # رجّع keystore من BASE64
+      # رجّع keystore من السر BASE64
       - name: Restore keystore from BASE64
         run: |
           printf "%s" "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
           ls -l release-keystore.jks
 
-      # ثبّت Gradle 8.7 (pin)
+      # نثبّت Gradle 8.7 ونفعّل الكاش
       - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v3
         with:
