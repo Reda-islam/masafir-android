@@ -1,20 +1,47 @@
-
-signingConfigs {
-    release {
-        storeFile file("${rootDir}/release-keystore.jks") // سيتخلق فـ CI
-        storePassword System.getenv("KEYSTORE_PASSWORD")
-        keyAlias      System.getenv("KEY_ALIAS")
-        keyPassword   System.getenv("KEY_PASSWORD")
-    }
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
-buildTypes {
-    release {
-        minifyEnabled false
-        shrinkResources false
-        signingConfig signingConfigs.release
+android {
+    namespace "com.masafir.app"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.masafir.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
     }
-    debug {
-        // ممكن تخليه بلا توقيع أو نفس التوقيع، ماشي ضروري
+
+    // 👈 التوقيع هنا داخل android
+    signingConfigs {
+        release {
+            // هاد الملف كيترجع فالـ CI من KEYSORE_BASE64
+            storeFile file("${rootDir}/release-keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias      System.getenv("KEY_ALIAS")
+            keyPassword   System.getenv("KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            // بلا توقيع خاص، ماشي ضروري تغيّر
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
     }
 }
