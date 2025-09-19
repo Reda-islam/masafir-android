@@ -18,9 +18,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: List aliases
+      - name: List aliases (using store password)
         run: |
+          set -e
+          echo "Trying to list aliases..."
           keytool -list -v \
+            -storetype JKS \
             -keystore release-keystore.jks \
-            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
-            | grep "Alias name"
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}"
