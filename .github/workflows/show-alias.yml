@@ -18,11 +18,18 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: List aliases (using store password)
+      - name: List aliases (try JKS then PKCS12)
+        shell: bash
         run: |
           set -e
-          echo "Trying to list aliases..."
+          echo "Trying JKS..."
           keytool -list -v \
-            -storetype JKS \
             -keystore release-keystore.jks \
+            -storetype JKS \
+            -storepass "${{ secrets.KEYSTORE_PASSWORD }}" || true
+
+          echo "Trying PKCS12..."
+          keytool -list -v \
+            -keystore release-keystore.jks \
+            -storetype PKCS12 \
             -storepass "${{ secrets.KEYSTORE_PASSWORD }}"
