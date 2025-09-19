@@ -11,49 +11,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # نخليو Gradle/التوقيع يقرى الباسوردات من الـenv
-    env:
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages (platform 34 + build-tools)
-        run: sdkmanager "platforms;android-34" "build-tools;30.0.3"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 17
 
-      # نفكّ الملف من السرّ BASE64 باش يلقاه Gradle فـ ${rootDir}/release-keystore.jks
-      - name: Restore keystore from BASE64 secret
-        shell: bash
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages (platform 34 + build-tools)
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
-          ls -l release-keystore.jks
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0"
 
+      # نفكّو keystore من السر الطويل BASE64
+      - name: Restore keystore from BASE64 secret
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
+
+      # Gradle (بدون gradlew)
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # بنِّي Release موقّع (بدّل :app: إذا كان اسم الموديول مختلف)
-      - name: Build signed APK & AAB
+      # بنِّي Release موقّع (APK + AAB)
+      - name: Build Release (APK & AAB)
         run: |
+          gradle --version
           gradle :app:clean
           gradle :app:assembleRelease
           gradle :app:bundleRelease
 
+      # ارفع المخرجات
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: signed-release-outputs
+          name: release-outputs
           path: |
-            app/build/outputs/apk/release/*release*.apk
-            app/build/outputs/bundle/release/*release*.aab
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
