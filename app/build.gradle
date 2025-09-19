@@ -1,4 +1,3 @@
-
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -16,7 +15,6 @@ android {
         versionName "1.0"
     }
 
-    // توقيع الريليز من Secrets
     signingConfigs {
         release {
             storeFile file("${rootDir}/release-keystore.jks")
@@ -32,21 +30,15 @@ android {
             shrinkResources false
             signingConfig signingConfigs.release
         }
-        debug {
-            // بلا توقيع خاص
-        }
+        debug { }
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    buildFeatures {
-        viewBinding true
-    }
+    kotlinOptions { jvmTarget = "17" }
+    buildFeatures { viewBinding true }
 }
 
 dependencies {
