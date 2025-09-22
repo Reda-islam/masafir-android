@@ -1,0 +1,46 @@
+name: Unzip web + Android CI
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'masafir_index_final*.zip'
+      - '.github/workflows/unzip-and-build.yml'
+      - 'app/**'
+      - 'build.gradle'
+      - 'gradle.properties'
+      - 'settings.gradle*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Prepare web assets (unzip)
+        run: |
+          ZIP_FILE=$(ls -t masafir_index_final*.zip 2>/dev/null | head -n 1 || true)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No masafir_index_final*.zip found. Skipping unzip."
+            exit 0
+          fi
+          rm -rf app/src/main/assets/www
+          mkdir -p app/src/main/assets/www
+          unzip -o "$ZIP_FILE" -d app/src/main/assets/www
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+      - name: Build Release (APK + AAB)
+        run: |
+          ./gradlew clean :app:assembleRelease :app:bundleRelease
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-outputs
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
