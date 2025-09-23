@@ -12,46 +12,60 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1) جِب الكود
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2) إعداد Android SDK
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # 3) إعداد Java 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # رجّع keystore من السرّ Base64 (اسم السر لازم يكون KEYSTORE_BASE64)
+      # 4) تثبيت Gradle 8.7 (بدل ./gradlew)
+      - name: Install Gradle 8.7 via SDKMAN
+        shell: bash
+        run: |
+          curl -s "https://get.sdkman.io" | bash
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          sdk install gradle 8.7
+          echo "$HOME/.sdkman/candidates/gradle/current/bin" >> $GITHUB_PATH
+          gradle --version
+
+      # 5) رجّع keystore من Base64 (السر KEYS في Settings > Secrets)
       - name: Restore keystore from BASE64
         run: |
           printf "%s" "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-keystore.jks
           ls -l release-keystore.jks
 
-      # تشخيص سريع: تحقق من storepass والـ aliases ثم keypass
+      # 6) تشخيص سريع: تحقق من storepass و keypass ثم aliases
       - name: Diagnose keystore passwords & alias
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
+        shell: bash
         run: |
           set -euo pipefail
           echo "1) Checking store password..."
-          keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" >/dev/null
-          echo "   ✅ storepass OK"
+          keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" >/dev/null \
+            && echo "  ✅ storepass OK"
 
           echo "2) Listing aliases (to auto-detect if needed)..."
           aliases=$(keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" | sed -n 's/^Alias name: //p' | tr -d '\r')
-          echo "   Found aliases: $aliases"
+          echo "  Found aliases: $aliases"
 
           sel_alias="${KEY_ALIAS:-}"
           if [ -z "$sel_alias" ]; then
             sel_alias=$(echo "$aliases" | head -n1)
-            echo "   Using detected alias: $sel_alias"
+            echo "  Using detected alias: $sel_alias"
           else
-            echo "   Using provided KEY_ALIAS: $sel_alias"
+            echo "  Using provided KEY_ALIAS: $sel_alias"
           fi
           if [ -z "$sel_alias" ]; then
             echo "❌ No alias found in keystore."; exit 1
@@ -59,27 +73,32 @@ jobs:
 
           echo "3) Checking key password for alias: $sel_alias"
           keytool -list -keystore release-keystore.jks -storepass "$KEYSTORE_PASSWORD" -alias "$sel_alias" -keypass "$KEY_PASSWORD" >/dev/null \
-            && echo "   ✅ keypass OK" \
+            && echo "  ✅ keypass OK" \
             || (echo "❌ keypass incorrect for alias '$sel_alias'"; exit 1)
 
           echo "KEY_ALIAS=$sel_alias" >> $GITHUB_ENV
 
-      # (اختياري لكن مفيد للكاش) تهيئة Gradle
-      - name: Setup Gradle
+      # 7) (اختياري لكن مفيد للكاش) إعداد Gradle cache
+      - name: Setup Gradle (cache)
         uses: gradle/actions/setup-gradle@v3
 
+      # 8) Build Debug APK
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: gradle :app:assembleDebug --stacktrace
 
+      # 9) Build Release (APK & AAB)
       - name: Build Release (APK & AAB)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: ${{ env.KEY_ALIAS }}
+          KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS:         ${{ env.KEY_ALIAS }}
+        shell: bash
         run: |
-          ./gradlew :app:assembleRelease --stacktrace
-          ./gradlew :app:bundleRelease --stacktrace
+          # إذا كان signingConfig مضبوط فـ Gradle، غير هاد الشي كافي
+          gradle :app:assembleRelease --stacktrace
+          gradle :app:bundleRelease   --stacktrace
 
+      # 10) Upload artifacts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
