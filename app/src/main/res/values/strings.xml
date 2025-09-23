@@ -1,3 +1,13 @@
 <resources>
+    <!-- اسم التطبيق -->
     <string name="app_name">Masafir</string>
+
+    <!-- لائحة الكلمات لي غادي نخفي بها الأزرار -->
+    <string-array name="delete_keywords">
+        <item>حذف</item>
+        <item>إزالة</item>
+        <item>Delete</item>
+        <item>Supprimer</item>
+        <item>Effacer</item>
+    </string-array>
 </resources>
