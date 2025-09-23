@@ -18,6 +18,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // إنشاء WebView
         webView = WebView(this)
         setContentView(webView)
 
@@ -26,72 +27,69 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             loadsImagesAutomatically = true
-            allowFileAccess = true
-            databaseEnabled = true
-            cacheMode = WebSettings.LOAD_DEFAULT
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        // إبقاء التصفح داخل WebView
-        webView.webViewClient = object : WebViewClient() {
+        webView.webChromeClient = WebChromeClient()
 
+        // جلب الكلمات من strings.xml
+        val keywords = resources.getStringArray(R.array.delete_keywords)
+        val jsArray = keywords.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+
+        // WebViewClient مع جافاسكريبت لإخفاء الأزرار
+        webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
 
-                // سكريبت لإخفاء أزرار الحذف بعد التحميل وأثناء تغيّر الـ DOM
-                val js = """
-                    (function () {
-                      function hideDangerButtons() {
-                        var keywords = ["حذف","إزالة","Delete","Supprimer","Effacer"];
-                        var nodes = Array.from(document.querySelectorAll('button, a, [role="button"], .btn, .button'));
-                        nodes.forEach(function(el){
-                          var t = ((el.innerText || el.textContent || "") + "").trim().toLowerCase();
-                          for (var i=0; i<keywords.length; i++){
-                            if (t.includes(keywords[i].toLowerCase())) {
-                              el.style.display = "none";
-                              el.setAttribute("data-masafir-hidden","true");
-                              break;
-                            }
-                          }
-                        });
-                      }
-
-                      hideDangerButtons();
-
-                      // لو الصفحة كتبدّل المحتوى (SPA)، نراقبو تغييرات الـ DOM ونعيد الإخفاء
-                      try {
-                        var obs = new MutationObserver(function(){ hideDangerButtons(); });
-                        obs.observe(document.documentElement, {childList:true, subtree:true});
-                      } catch(e) {}
+                val jsCode = """
+                    (function() {
+                        function hideButtons() {
+                            var keywords = $jsArray;
+                            var elements = document.querySelectorAll("button, a, div");
+                            elements.forEach(function(el) {
+                                var text = (el.innerText || "").trim();
+                                keywords.forEach(function(kw) {
+                                    if (text.includes(kw)) {
+                                        el.style.display = "none";
+                                    }
+                                });
+                            });
+                        }
+                        hideButtons();
+                        // مراقبة تغييرات الصفحة (SPA)
+                        var observer = new MutationObserver(hideButtons);
+                        observer.observe(document.body, { childList: true, subtree: true });
                     })();
                 """.trimIndent()
 
-                webView.evaluateJavascript(js, null)
+                view?.evaluateJavascript(jsCode, null)
             }
 
-            // خليه يفتح الروابط داخل نفس الويب فيو
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
-            ): Boolean = false
+            ): Boolean {
+                return false
+            }
         }
 
-        // لدعم JS dialogs الخ...
-        webView.webChromeClient = WebChromeClient()
+        // رابط الموقع ديالك
+        webView.loadUrl("https://mellifluous-douhua-9377eb.netlify.app")
 
-        // 🔷 دومين نتلايفي ديالك
-        webView.loadUrl("https://mellifluous-douhua-9377eb.netlify.app/")
-
-        // رجوع للخلف داخل الويب فيو
+        // زر الرجوع
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    finish()
+                }
             }
         })
     }
 
     override fun onDestroy() {
-        webView.destroy()
         super.onDestroy()
+        webView.destroy()
     }
 }
