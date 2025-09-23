@@ -2,12 +2,19 @@
     <!-- اسم التطبيق -->
     <string name="app_name">Masafir</string>
 
-    <!-- لائحة الكلمات لي غادي نخفي بها الأزرار -->
+    <!-- الكلمات المفتاحية اللي خاص يتخبّاو -->
     <string-array name="delete_keywords">
+        <!-- العربية -->
         <item>حذف</item>
         <item>إزالة</item>
-        <item>Delete</item>
+
+        <!-- الفرنسية -->
         <item>Supprimer</item>
         <item>Effacer</item>
+
+        <!-- الإنجليزية -->
+        <item>Delete</item>
+        <item>Remove</item>
+        <item>Erase</item>
     </string-array>
 </resources>
