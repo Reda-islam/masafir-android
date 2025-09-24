@@ -11,26 +11,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # نوفر الـ ENV ل Gradle (نفس الأسماء اللي فال secrets)
+    # نوفر متغيرات البيئة من الـ secrets
     env:
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD:     ${{ secrets.KEY_PASSWORD }}
+      KEY_ALIAS:        ${{ secrets.KEY_ALIAS }}
 
     steps:
+      # 1) جِبّ الكود
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2) إعداد Android SDK (اختياري ولكن مفيد لبعض المهام)
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # 3) إعداد JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # ⬇️ هادي أهم خطوة: نفكّو الـ Base64 ونحطّو الملف فـ app/release-keystore.jks
+      # 4) رجّع keystore من Base64 إلى ملف فعلي داخل app/release-keystore.jks
       - name: Restore keystore from BASE64
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
@@ -38,27 +41,27 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # (اختياري ولكن مزيان) نحذف صلاحيات القراءة للجميع
+      # (اختياري) تشديد صلاحيات الملف
       - name: Secure keystore permissions
         run: chmod 600 app/release-keystore.jks
 
-      # Gradle 8.7
-      - name: Setup Gradle 8.7
+      # 5) إعداد Gradle 8.8 (ضروري باش نواكب متطلبات Target/SDK الحديثة)
+      - name: Setup Gradle 8.8
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: 8.7
+          gradle-version: 8.8
 
-      # بناء Debug (اختياري)، يساعد للتأكد كلشي خدام
+      # 6) بناء Debug (اختياري — يساعد نتأكد أن كلشي خدام)
       - name: Build Debug APK
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleDebug --stacktrace
 
-      # بناء Release (APK & AAB)
+      # 7) بناء Release (APK & AAB)
       - name: Build Release (APK & AAB)
         run: |
-          gradle :app:assembleRelease
-          gradle :app:bundleRelease
+          gradle :app:assembleRelease --stacktrace
+          gradle :app:bundleRelease   --stacktrace
 
-      # رفع المخرجات
+      # 8) رفع المخرجات كـ artifacts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
