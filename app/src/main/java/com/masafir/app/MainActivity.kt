@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnWhatsApp: Button
 
     // ✏️ بدّل هاد القيم برابط موقعك ورقمك
+    private val START_URL = "https://www.google.com"        // مثال تجريبي
     private val PHONE_E164 = "+2126XXXXXXXX"                // مع +
     private val PHONE_INTL = "2126XXXXXXXX"                 // بدون +
 
