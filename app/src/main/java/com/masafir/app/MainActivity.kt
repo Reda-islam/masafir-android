@@ -5,12 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.webkit.WebChromeClient
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.Button
-import androidx.activity.OnBackPressedCallback
+import android.webkit.*
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -20,90 +15,81 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // نستعمل ملف الواجهة الجديد
+        // مهم: استعمل الواجهة اللي فيها WebView والأزرار
         setContentView(R.layout.activity_main)
 
-        // نجيبو العناصر من الواجهة
         webView = findViewById(R.id.webView)
-        val btnCall = findViewById<Button>(R.id.btnCall)
-        val btnWhats = findViewById<Button>(R.id.btnWhatsApp)
 
-        // إعدادات WebView
-        val ws: WebSettings = webView.settings
+        val ws = webView.settings
         ws.javaScriptEnabled = true
         ws.domStorageEnabled = true
-        ws.cacheMode = WebSettings.LOAD_DEFAULT
 
-        // فتح الروابط داخل التطبيق + دعم tel: و mailto: و whatsapp:
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return when {
-                    url.startsWith("tel:") -> {
-                        startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
-                        true
-                    }
-                    url.startsWith("mailto:") -> {
-                        val email = Intent(Intent.ACTION_SENDTO, Uri.parse(url))
-                        startActivity(Intent.createChooser(email, "Send email"))
-                        true
-                    }
-                    url.startsWith("whatsapp:") || url.contains("wa.me") -> {
-                        openWhatsApp(url)
-                        true
-                    }
-                    else -> {
-                        view.loadUrl(url)
-                        false
-                    }
-                }
-            }
-        }
         webView.webChromeClient = WebChromeClient()
-        webView.loadUrl("https://masafir.ma")
 
-        // رقم افتراضي – بدلو باللي باغي، أو قدّموه من الويب عبر JS Interface
-        val defaultPhone = "0677554433"
+        // اعتراض جميع الروابط غير http/https (tel/mailto/whatsapp/intent)
+        webView.webViewClient = object : WebViewClient() {
 
-        // زر اتصال => يفتح Dialer
-        btnCall.setOnClickListener {
-            openDialer(defaultPhone)
+            override fun shouldOverrideUrlLoading(
+                view: WebView,
+                request: WebResourceRequest
+            ): Boolean = handleCustomSchemes(request.url.toString())
+
+            @Deprecated("old API")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+                handleCustomSchemes(url)
         }
 
-        // زر واتساب
-        btnWhats.setOnClickListener {
-            openWhatsApp("https://wa.me/" + defaultPhone.filter { it.isDigit() })
+        webView.loadUrl("https://masafir.ma")   // بدّلها إلى موقعك إذا لزم
+
+        // أزرار أسفل الصفحة (اختياري)
+        findViewById<android.widget.Button>(R.id.btnCall)?.setOnClickListener {
+            // متيمش مباشرة للاتصال — غير يفتح دايلر
+            val phone = "0677554433" // ولا جيبه من الصفحة/السيرفر
+            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone")))
         }
 
-        // زر الرجوع
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
-    }
-
-    private fun openDialer(number: String) {
-        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number"))
-        startActivity(intent)
-    }
-
-    private fun openWhatsApp(uriOrNumber: String) {
-        // ممكن يكون uri جاهز (whatsapp:/wa.me) أو غير رقم
-        val uri = if (uriOrNumber.startsWith("http") || uriOrNumber.startsWith("whatsapp"))
-            Uri.parse(uriOrNumber)
-        else
-            Uri.parse("https://wa.me/" + uriOrNumber.filter { it.isDigit() })
-
-        val waIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-            // نخليوها تفضّل تطبيق واتساب إلا كان متبّت
-            setPackage("com.whatsapp")
-        }
-        try {
-            startActivity(waIntent)
-        } catch (_: ActivityNotFoundException) {
-            // fallback: يفتح المتصفح على wa.me
+        findViewById<android.widget.Button>(R.id.btnWhatsApp)?.setOnClickListener {
+            val phoneIntl = "212677554433" // واتساب خاص بصيغة دولية بلا "+"
+            val uri = Uri.parse("https://wa.me/$phoneIntl")
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         }
+    }
+
+    private fun handleCustomSchemes(url: String): Boolean {
+        return when {
+            url.startsWith("tel:") -> {
+                startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                true
+            }
+            url.startsWith("mailto:") -> {
+                startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(url)))
+                true
+            }
+            url.startsWith("whatsapp:") ||
+            url.contains("wa.me") ||
+            url.contains("api.whatsapp.com") -> {
+                val view = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                view.setPackage("com.whatsapp")
+                try {
+                    startActivity(view)
+                } catch (e: ActivityNotFoundException) {
+                    // إلى ما كانش واتساب منصّب، نخلّيه يشوفها بلا باكيج
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                }
+                true
+            }
+            url.startsWith("intent:") -> {
+                try {
+                    val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                    startActivity(intent)
+                    true
+                } catch (_: Exception) { false }
+            }
+            else -> false // http/https خليه يكمل فالـWebView
+        }
+    }
+
+    override fun onBackPressed() {
+        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 }
