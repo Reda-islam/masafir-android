@@ -26,7 +26,7 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
         }
-        webView.loadUrl("https://masafir.ma") // بدّل بالرابط ديالك
+         webView.loadUrl("https://www.google.com")// بدّل بالرابط ديالك
 
         // زر الاتصال
         btnCall.setOnClickListener {
