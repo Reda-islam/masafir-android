@@ -1,118 +1,35 @@
-package com.masafir.app
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.masafir.app">
 
-import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
-import android.os.Bundle
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
+    <!-- الإنترنت للـ WebView -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
-class MainActivity : AppCompatActivity() {
+    <application
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.App">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
 
-    private lateinit var webView: WebView
-
-    @SuppressLint("SetJavaScriptEnabled")
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        // لو كتستعمل layout فيه WebView بـ id=webView
-        // setContentView(R.layout.activity_main)
-        // webView = findViewById(R.id.webView)
-
-        // أو: WebView مباشرة بلا layout
-        webView = WebView(this)
-        setContentView(webView)
-
-        val ws: WebSettings = webView.settings
-        ws.javaScriptEnabled = true
-        ws.domStorageEnabled = true
-        ws.cacheMode = WebSettings.LOAD_DEFAULT
-        ws.loadWithOverviewMode = true
-        ws.useWideViewPort = true
-        ws.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-
-        webView.webChromeClient = WebChromeClient()
-
-        // نعالجو السكيمات الخاصة (tel/mailto/whatsapp)
-        webView.webViewClient = object : WebViewClient() {
-
-            override fun shouldOverrideUrlLoading(
-                view: WebView,
-                request: WebResourceRequest
-            ): Boolean {
-                return handleCustomSchemes(request.url.toString())
-            }
-
-            @Deprecated("for old API")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return handleCustomSchemes(url)
-            }
-        }
-
-        // URL ديال موقعك
-        webView.loadUrl("https://masafir.ma")
-
-        // زر الرجوع يخدّم داخل الويب فيو
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
-    }
-
-    private fun handleCustomSchemes(url: String): Boolean {
-        // tel:
-        if (url.startsWith("tel:", ignoreCase = true)) {
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse(url))
-            startActivitySafe(intent)
-            return true
-        }
-
-        // mailto:
-        if (url.startsWith("mailto:", ignoreCase = true)) {
-            val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(url))
-            startActivitySafe(intent)
-            return true
-        }
-
-        // WhatsApp: wa.me / whatsapp://
-        if (url.contains("wa.me", ignoreCase = true) ||
-            url.startsWith("whatsapp://", ignoreCase = true) ||
-            url.contains("api.whatsapp.com", ignoreCase = true)
-        ) {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            // نخلي أندرويد يقترح واتساب/المتصفح
-            startActivitySafe(intent, noAppMsg = "ما لقيتش تطبيق مناسب لفتح واتساب")
-            return true
-        }
-
-        // أي حاجة أخرى: خلّي WebView يفتحها
-        return false
-    }
-
-    private fun startActivitySafe(intent: Intent, noAppMsg: String = "ما لقيتش تطبيق مناسب") {
-        try {
-            startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, noAppMsg, Toast.LENGTH_SHORT).show()
-        }
-    }
-}
-<queries>
-    <intent>
-        <action android:name="android.intent.action.VIEW" />
-        <data android:scheme="tel" />
-    </intent>
-    <intent>
-        <action android:name="android.intent.action.VIEW" />
-        <data android:scheme="mailto" />
-    </intent>
-    <package android:name="com.whatsapp" />
-</queries>
+    <!-- باش نسمحو للـ WebView يفتح tel/mailto/whatsapp -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mailto" />
+        </intent>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+    </queries>
+</manifest>
