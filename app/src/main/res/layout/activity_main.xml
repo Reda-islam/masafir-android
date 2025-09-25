@@ -1,38 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
-    <!-- زر الاتصال -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:padding="12dp">
 
-        <ImageButton
+        <Button
             android:id="@+id/btnCall"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="Call"
-            android:padding="8dp"
-            android:src="@android:drawable/ic_menu_call" />
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="اتصال"
+            android:textSize="16sp"
+            android:layout_marginEnd="8dp" />
 
-        <ImageButton
+        <Button
             android:id="@+id/btnWhatsApp"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@android:color/transparent"
-            android:contentDescription="WhatsApp"
-            android:padding="8dp"
-            android:src="@android:drawable/ic_dialog_email"
-            android:layout_marginTop="12dp"/>
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="واتساب"
+            android:textSize="16sp"
+            android:layout_marginStart="8dp" />
     </LinearLayout>
-</FrameLayout>
+
+</LinearLayout>
