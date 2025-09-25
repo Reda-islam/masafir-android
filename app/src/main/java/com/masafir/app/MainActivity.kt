@@ -1,115 +1,61 @@
 package com.masafir.app
 
-import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var webView: WebView
-
-    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        // WebView مباشرة (إذا بغيت تستعمل layout، بدّل هاد الجزأ بـ setContentView(R.layout.activity_main))
-        webView = WebView(this)
-        setContentView(webView)
+        val webView: WebView = findViewById(R.id.webView)
+        val btnCall: Button = findViewById(R.id.btnCall)
+        val btnWhatsApp: Button = findViewById(R.id.btnWhatsApp)
 
-        val ws: WebSettings = webView.settings
-        ws.javaScriptEnabled = true
-        ws.domStorageEnabled = true
-        ws.cacheMode = WebSettings.LOAD_DEFAULT
-        ws.loadWithOverviewMode = true
-        ws.useWideViewPort = true
-        ws.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        // إعداد WebView
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+        webView.webViewClient = WebViewClient()
+        webView.loadUrl("https://masafir.ma") // غيّر الرابط إلا بغيت
 
-        webView.webChromeClient = WebChromeClient()
-
-        // نعالجو السكيمات الخاصة (tel / mailto / whatsapp / wa.me)
-        webView.webViewClient = object : WebViewClient() {
-
-            override fun shouldOverrideUrlLoading(
-                view: WebView,
-                request: WebResourceRequest
-            ): Boolean = handleCustomSchemes(request.url.toString())
-
-            @Deprecated("for old API")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
-                handleCustomSchemes(url)
-        }
-
-        // حمّل موقعك
-        webView.loadUrl("https://masafir.ma")
-
-        // زر الرجوع داخل الويب فيو
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
+        // زر الاتصال → يفتح تطبيق Dialer
+        btnCall.setOnClickListener {
+            val intent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:+212600000000") // غيّر الرقم ديالك
             }
-        })
-    }
-
-    private fun handleCustomSchemes(url: String): Boolean {
-        val lower = url.lowercase()
-
-        // 1) اتصال: افتح لوحة الاتصال (ماشي اتصال مباشر)
-        if (lower.startsWith("tel:")) {
-            startActivitySafe(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
-            return true
-        }
-
-        // 2) إيميل: افتح تطبيق البريد
-        if (lower.startsWith("mailto:")) {
-            startActivitySafe(Intent(Intent.ACTION_SENDTO, Uri.parse(url)))
-            return true
-        }
-
-        // 3) واتساب: whatsapp:// أو wa.me أو api.whatsapp.com
-        if (
-            lower.startsWith("whatsapp:") ||
-            lower.contains("://wa.me/") ||
-            lower.contains("api.whatsapp.com")
-        ) {
-            // جرّب واتساب العادي ثم بزنس، وإلا افتح بالمتصفح
-            var i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.whatsapp")
-            if (!startActivitySafe(i)) {
-                i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.whatsapp.w4b")
-                if (!startActivitySafe(i)) {
-                    startActivitySafe(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                }
-            }
-            return true
-        }
-
-        // http/https نخليه للويب فيو
-        if (lower.startsWith("http://") || lower.startsWith("https://")) return false
-
-        // أي سكيم آخر: جرّب نفتحو بتطبيق خارجي
-        startActivitySafe(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        return true
-    }
-
-    private fun startActivitySafe(intent: Intent, noAppMsg: String = "التطبيق المناسب غير مُثبت") : Boolean {
-        return try {
             startActivity(intent)
-            true
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, noAppMsg, Toast.LENGTH_SHORT).show()
-            false
-        } catch (_: Exception) {
-            Toast.makeText(this, "تعذّر فتح الرابط", Toast.LENGTH_SHORT).show()
-            false
+        }
+
+        // زر واتساب → يفتح المحادثة
+        btnWhatsApp.setOnClickListener {
+            val url = "https://wa.me/212600000000" // الرقم بصيغة دولية بلا 0
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setPackage("com.whatsapp")
+                    data = Uri.parse(url)
+                }
+                startActivity(intent)
+            } catch (e: Exception) {
+                // إذا ماكانش واتساب، يفتح المتصفح
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                startActivity(intent)
+            }
+        }
+    }
+
+    override fun onBackPressed() {
+        val webView: WebView = findViewById(R.id.webView)
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
         }
     }
 }
