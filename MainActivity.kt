@@ -1,11 +1,13 @@
 package com.masafir.app
 
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Message
 import android.webkit.*
+import android.widget.ImageButton
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 
@@ -13,40 +15,44 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
 
+    // عدّل الأرقام هنا
+    private val SUPPORT_PHONE = "+212677554433"      // رقم الاتصال
+    private val WHATSAPP_NUMBER = "+212677554433"    // نفسو أو رقم آخر
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-        webView = WebView(this)
-        setContentView(webView)
+        webView = findViewById(R.id.webView)
+        val btnCall: ImageButton = findViewById(R.id.btnCall)
+        val btnWhats: ImageButton = findViewById(R.id.btnWhatsApp)
 
-        val s = webView.settings
-        s.javaScriptEnabled = true
-        s.domStorageEnabled = true
-        s.setSupportMultipleWindows(true)
-        s.javaScriptCanOpenWindowsAutomatically = true
-        s.cacheMode = WebSettings.LOAD_DEFAULT
+        // إعداد WebView
+        with(webView.settings) {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
+            cacheMode = WebSettings.LOAD_DEFAULT
+        }
 
-        // يلتقط الروابط الخاصة ويحولها للتطبيقات المناسبة
         webView.webViewClient = object : WebViewClient() {
-
-            // للأجهزة الجديدة
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest?
             ): Boolean {
                 val url = request?.url?.toString() ?: return false
-                return handleSpecialSchemes(url)
+                return handleSchemes(url)
             }
 
-            // توافق مع الأجهزة القديمة
             @Deprecated("Deprecated in API 24")
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                return handleSpecialSchemes(url ?: return false)
+                return handleSchemes(url ?: return false)
             }
         }
 
-        // يدير handle حتى للروابط اللي كتخرج بنافذة جديدة (target=_blank / window.open)
+        // يدير handle حتى للروابط اللي كتخرج بنافذة جديدة
         webView.webChromeClient = object : WebChromeClient() {
             override fun onCreateWindow(
                 view: WebView?,
@@ -60,7 +66,7 @@ class MainActivity : AppCompatActivity() {
                 temp.webViewClient = object : WebViewClient() {
                     override fun onPageStarted(v: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                         val u = url ?: return
-                        if (handleSpecialSchemes(u)) {
+                        if (handleSchemes(u)) {
                             v?.destroy()
                         } else {
                             webView.loadUrl(u)
@@ -84,15 +90,32 @@ class MainActivity : AppCompatActivity() {
                 if (webView.canGoBack()) webView.goBack() else finish()
             }
         })
+
+        // أزرار علو WebView
+        btnCall.setOnClickListener {
+            // ما كنديروش اتصال مباشر، غير نفتح Dialer بالرقم
+            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$SUPPORT_PHONE"))
+            startActivity(intent)
+        }
+
+        btnWhats.setOnClickListener {
+            // نفضّلو wa.me باش يخدم حتى بلا التطبيق
+            val waUri = Uri.parse("https://wa.me/${WHATSAPP_NUMBER.replace("+", "").replace(" ", "")}")
+            val i = Intent(Intent.ACTION_VIEW, waUri)
+            try { startActivity(i) } catch (_: ActivityNotFoundException) {
+                // fallback إلى واتساب سكيم إلا كان متبّت
+                val alt = Intent(Intent.ACTION_VIEW, Uri.parse("whatsapp://send?phone=${WHATSAPP_NUMBER}"))
+                try { startActivity(alt) } catch (_: Exception) {}
+            }
+        }
     }
 
-    /** DEAL مع tel/mailto/whatsapp/intent… بدون اتصال مباشر */
-    private fun handleSpecialSchemes(url: String): Boolean {
+    /** التعامل مع tel/mailto/whatsapp/intent… داخل WebView */
+    private fun handleSchemes(url: String): Boolean {
         val uri = Uri.parse(url)
         return when (uri.scheme?.lowercase()) {
-            "http", "https" -> false // خلي الويب فيو يفتحها
-            "tel" -> {
-                // يفتح Dialer بالرقم (بدون اتصال مباشر)
+            "http", "https" -> false
+            "tel" -> { // يفتح Dialer (ماشي اتصال مباشر)
                 startActivity(Intent(Intent.ACTION_DIAL, uri))
                 true
             }
@@ -115,7 +138,7 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             else -> {
-                // أي سكيم آخر: جرّب نفتحوه بتطبيق خارجي ونمنعو من الويب فيو
+                // جرب أي سكيم آخر
                 try {
                     val i = Intent(Intent.ACTION_VIEW, uri)
                     if (i.resolveActivity(packageManager) != null) startActivity(i)
