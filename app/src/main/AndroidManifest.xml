@@ -2,31 +2,39 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.masafir.app">
 
-    <!-- صلاحية الإنترنت ضرورية -->
+    <!-- إذن الإنترنت ضروري للـ WebView -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
-        android:label="Masafir"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
-        android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:screenOrientation="portrait">
-
+            android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-
         </activity>
 
     </application>
+
+    <!-- باش يسمح لك تستعلم على تطبيقات خارجية (Android 11+) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mailto" />
+        </intent>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+    </queries>
 
 </manifest>
