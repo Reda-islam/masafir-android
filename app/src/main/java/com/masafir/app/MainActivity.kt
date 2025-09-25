@@ -1,57 +1,91 @@
 package com.masafir.app
 
+import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
-import androidx.appcompat.app.AppCompatActivity
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var webView: WebView
+
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val webView: WebView = findViewById(R.id.webView)
+        webView = findViewById(R.id.webView)
         val btnCall: Button = findViewById(R.id.btnCall)
         val btnWhatsApp: Button = findViewById(R.id.btnWhatsApp)
 
-        // إعداد WebView
+        // ✅ بدل الرابط مؤقتًا بـ Google.com باش تختبر
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
-        webView.webViewClient = WebViewClient()
-        webView.loadUrl("https://masafir.ma") // غيّر الرابط إلا بغيت
-
-        // زر الاتصال → يفتح تطبيق Dialer
-        btnCall.setOnClickListener {
-            val intent = Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:+212600000000") // غيّر الرقم ديالك
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url.toString()
+                return handleCustomSchemes(url)
             }
+        }
+        webView.loadUrl("https://www.google.com")
+
+        // زر الاتصال
+        btnCall.setOnClickListener {
+            val phone = "+212600000000" // ✨ بدل برقمك
+            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
             startActivity(intent)
         }
 
-        // زر واتساب → يفتح المحادثة
+        // زر واتساب
         btnWhatsApp.setOnClickListener {
-            val url = "https://wa.me/212600000000" // الرقم بصيغة دولية بلا 0
+            val phone = "212600000000" // ✨ رقم بدون "+"
+            val url = "https://wa.me/$phone"
             try {
                 val intent = Intent(Intent.ACTION_VIEW).apply {
-                    setPackage("com.whatsapp")
                     data = Uri.parse(url)
+                    setPackage("com.whatsapp")
                 }
                 startActivity(intent)
-            } catch (e: Exception) {
-                // إذا ماكانش واتساب، يفتح المتصفح
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                Toast.makeText(this, "واتساب غير مثبت", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
+    private fun handleCustomSchemes(url: String): Boolean {
+        return when {
+            url.startsWith("tel:") -> {
+                val intent = Intent(Intent.ACTION_DIAL, Uri.parse(url))
+                startActivity(intent)
+                true
+            }
+            url.startsWith("mailto:") -> {
+                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(url))
+                startActivity(intent)
+                true
+            }
+            url.contains("wa.me") || url.startsWith("whatsapp:") -> {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    intent.setPackage("com.whatsapp")
+                    startActivity(intent)
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(this, "واتساب غير مثبت", Toast.LENGTH_SHORT).show()
+                }
+                true
+            }
+            else -> false
+        }
+    }
+
     override fun onBackPressed() {
-        val webView: WebView = findViewById(R.id.webView)
         if (webView.canGoBack()) {
             webView.goBack()
         } else {
