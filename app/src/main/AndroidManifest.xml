@@ -2,39 +2,39 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.masafir.app">
 
-    <!-- إذن الإنترنت ضروري للـ WebView -->
+    <!-- إنترنت للـ WebView -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- باش نقدر نستعلم على تطبيق واتساب (اختياري ولكن مفيد) -->
+    <queries>
+        <package android:name="com.whatsapp" />
+    </queries>
 
     <application
         android:allowBackup="true"
+        android:label="Masafir"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+        android:hardwareAccelerated="true"
+        >
+        <!-- ملاحظة: إذا موقعك http (ماشي https)، زِد الخاصية usesCleartextTraffic="true" هنا -->
+        <!-- مثال:
+        <application
+            ...
+            android:usesCleartextTraffic="true">
+        -->
 
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
     </application>
-
-    <!-- باش يسمح لك تستعلم على تطبيقات خارجية (Android 11+) -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="tel" />
-        </intent>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="mailto" />
-        </intent>
-        <package android:name="com.whatsapp" />
-        <package android:name="com.whatsapp.w4b" />
-    </queries>
 
 </manifest>
