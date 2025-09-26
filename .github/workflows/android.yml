@@ -1,69 +1,72 @@
-name: Android CI (Signed AAB)
+name: Android CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    # نوفر متغيرات البيئة من الـ secrets
+    env:
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_PASSWORD:     ${{ secrets.KEY_PASSWORD }}
+      KEY_ALIAS:        ${{ secrets.KEY_ALIAS }}
+
     steps:
-      - name: Checkout
+      # 1) جِب الكود
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # Java 17 (AGP 8.x)
+      # 2) إعداد Android SDK (اختياري ولكن مفيد لبعض المهام)
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 3) إعداد JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
 
-      # (اختياري) تقدر تحذف خطوة التحقق من الـ wrapper إذا ما عندكش gradle-wrapper.jar
-      # - name: Validate Gradle Wrapper
-      #   uses: gradle/actions/wrapper-validation@v3
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      # استرجاع keystore من الـ secrets (Base64 → ملف .jks)
+      # 4) رجع keystore من Base64 إلى ملف فعلي داخل app/release-keystore.jks
       - name: Restore keystore from BASE64
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/release-keystore.jks
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
           ls -lh app/release-keystore.jks
-          chmod 600 app/release-keystore.jks
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # نضيف خصائص التوقيع إلى gradle.properties (يُقرأ من build.gradle)
-      - name: Configure signing properties
+      # تشديد صلاحيات الملف (اختياري)
+      - name: Secure keystore permissions
+        run: chmod 600 app/release-keystore.jks
+
+      # 5) إعداد Gradle 8.8 (ضروري باش نواكب متطلبات Target/SDK الحديثة)
+      - name: Setup Gradle 8.8
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.8
+
+      # 6) بناء Debug APK (اختياري – يساعد تتأكد أن كلشي خدام)
+      - name: Build Debug APK
+        run: gradle :app:assembleDebug --stacktrace
+
+      # 7) بناء Release (APK & AAB)
+      - name: Build Release (APK & AAB)
         run: |
-          cat >> gradle.properties <<'EOF'
-          MY_STORE_FILE=app/release-keystore.jks
-          MY_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}
-          MY_KEY_ALIAS=${{ secrets.KEY_ALIAS }}
-          MY_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}
-          EOF
-          echo "gradle.properties updated"
+          gradle :app:assembleRelease --stacktrace
+          gradle :app:bundleRelease --stacktrace
 
-      # Build Debug APK (للتجربة)
-      - name: Assemble Debug APK
-        run: ./gradlew :app:assembleDebug -S --warning-mode all
-
-      - name: Upload Debug APK
+      # 8) رفع المخرجات كـ artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-
-      # Build Release AAB (مُوقّع بمفاتيحك)
-      - name: Assemble Signed Release AAB
-        run: ./gradlew :app:bundleRelease -S --warning-mode all
-
-      - name: Upload Signed Release AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-aab-signed
-          path: app/build/outputs/bundle/release/*.aab
+          name: android-outputs
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
