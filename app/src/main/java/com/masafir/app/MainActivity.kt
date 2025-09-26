@@ -6,114 +6,87 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var btnCall: Button
-    private lateinit var btnWhatsApp: Button
-
-    // ✏️ بدّل هاد القيم برابط موقعك ورقمك
-    private val START_URL = "https://www.google.com"        // مثال تجريبي
-    private val PHONE_E164 = "+2126XXXXXXXX"                // مع +
-    private val PHONE_INTL = "2126XXXXXXXX"                 // بدون +
+    private val startUrl = "https://masafir.yourdomain.tld/" // بدّلها برابط موقعك
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        webView = findViewById(R.id.webView)
-        btnCall = findViewById(R.id.btnCall)
-        btnWhatsApp = findViewById(R.id.btnWhatsApp)
+        webView = findViewById(R.id.webview) // تأكد الـ id موجود فـ activity_main.xml
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
 
-        // إعدادات WebView
-        with(webView.settings) {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadsImagesAutomatically = true
-            useWideViewPort = true
-            loadWithOverviewMode = true
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-        }
         webView.webViewClient = object : WebViewClient() {
 
-            // للأجهزة القديمة (بعضها ماكيستعملش WebResourceRequest)
-            @Deprecated("Deprecated in API 24")
+            // لأجهزة قديمة
+            @Deprecated("for < API 24")
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                return handleSpecialLinks(url ?: return false)
+                return handleUrl(url)
             }
 
-            override fun shouldOverrideUrlLoading(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): Boolean {
-                val url = request?.url?.toString() ?: return false
-                return handleSpecialLinks(url)
+            // لأجهزة حديثة
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                return handleUrl(request.url?.toString())
             }
 
-            private fun handleSpecialLinks(url: String): Boolean {
-                // tel:
-                if (url.startsWith("tel:")) {
-                    startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
-                    return true
-                }
-                // WhatsApp links
-                if (url.startsWith("whatsapp:") || url.contains("wa.me") || url.contains("api.whatsapp.com")) {
-                    try {
-                        val i = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        i.setPackage("com.whatsapp")
-                        startActivity(i)
-                    } catch (e: ActivityNotFoundException) {
-                        // افتح فالمتصفح كبديل أو بلغ المستخدم
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                        } catch (_: Exception) {
-                            Toast.makeText(this@MainActivity, "ما قدرناش نفتحو الرابط.", Toast.LENGTH_SHORT).show()
+            private fun handleUrl(raw: String?): Boolean {
+                val url = raw ?: return false
+                return try {
+                    when {
+                        url.startsWith("tel:", true) -> {
+                            // اتصال عبر Dialer (أفضل لGoogle Play)
+                            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
+                            true
                         }
+                        url.startsWith("mailto:", true) -> {
+                            startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse(url)))
+                            true
+                        }
+                        url.startsWith("whatsapp://", true) ||
+                        url.contains("wa.me/", true) -> {
+                            val i = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            if (i.resolveActivity(packageManager) != null) startActivity(i)
+                            else Toast.makeText(this@MainActivity, "WhatsApp غير مُثبت", Toast.LENGTH_SHORT).show()
+                            true
+                        }
+                        url.startsWith("intent://", true) -> {
+                            try {
+                                val i = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                                if (i.resolveActivity(packageManager) != null) startActivity(i)
+                                else i.getStringExtra("browser_fallback_url")?.let { fb ->
+                                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fb)))
+                                }
+                            } catch (_: Exception) {}
+                            true
+                        }
+                        url.startsWith("http://") || url.startsWith("https://") -> false // خلّي WebView يكمّل
+                        else -> true // أي سكيم مجهول: ما نخليوش WebView يحمّلو
                     }
-                    return true
+                } catch (e: ActivityNotFoundException) {
+                    Toast.makeText(this@MainActivity, "لا يوجد تطبيق مناسب", Toast.LENGTH_SHORT).show()
+                    true
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Link error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    true
                 }
-                // باقي الروابط خليه للـ WebView
-                return false
             }
         }
 
-        // حمّل الموقع
-        webView.loadUrl(START_URL)
-
-        // زر الاتصال: يفتح واجهة المكالمات
-        btnCall.setOnClickListener {
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$PHONE_E164"))
-            startActivity(intent)
-        }
-
-        // زر واتساب: يفتح محادثة
-        btnWhatsApp.setOnClickListener {
-            val url = "https://wa.me/$PHONE_INTL"
-            try {
-                val i = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                    setPackage("com.whatsapp")
-                }
-                startActivity(i)
-            } catch (e: ActivityNotFoundException) {
-                // إذا ماكانش واتساب، جرّب بالمتصفح
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            }
-        }
+        webView.loadUrl(startUrl)
     }
 
+    // رجوع للخلف داخل الويب فيو
     override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
-        }
+        if (this::webView.isInitialized && webView.canGoBack()) webView.goBack()
+        else super.onBackPressed()
     }
 }
