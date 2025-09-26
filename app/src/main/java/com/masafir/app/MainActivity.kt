@@ -1,13 +1,8 @@
 package com.masafir.app
 
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.webkit.*
-import android.widget.Button
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 
@@ -15,11 +10,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
 
-    // عدّل هاد القيم برقم الهاتف ديالك
-    private val phoneNumber = "+212600000000"      // للاتصال
-    private val whatsappNumber = "212600000000"    // بدون + وبصيغة دولية
+    // ✅ رقم واتساب بصيغة دولية بدون +
+    private val whatsappNumber = "212600000000"
 
-    // غيّر الرابط إلى الدومين ديالك النهائي
+    // ✅ رابط موقعك
     private val startUrl = "https://mellifluous-douhua-9377eb.netlify.app/"
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -27,12 +21,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ربط الواجهات
         webView = findViewById(R.id.webview)
-        val btnCall: Button = findViewById(R.id.btnCall)
-        val btnWhatsapp: Button = findViewById(R.id.btnWhatsapp)
 
-        // إعدادات WebView
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -47,106 +37,101 @@ class MainActivity : AppCompatActivity() {
 
         webView.webChromeClient = WebChromeClient()
 
-        // فتح الروابط الخاصة خارج WebView
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = false
+            @Deprecated("for old api")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = false
 
-            // هندل لسكيمات خاصة: tel / mailto / whatsapp
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                return handleCustomSchemes(request.url.toString())
-            }
-
-            @Deprecated("for old API")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return handleCustomSchemes(url)
-            }
-
-            // إظهار/إخفاء عناصر حسب الصفحة
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-
-                // مثال: إخفاء رسالة الرحلة إلا إذا كنا في صفحة البحث
-                // بدّل ".trip-note" بالـ selector الحقيقي للرسالة عندك
-                val showTrips = url?.contains("search", ignoreCase = true) == true
-                val js = if (showTrips) {
-                    // خليه يظهر (كنشيل display:none)
-                    """(function(){var el=document.querySelector(".trip-note"); if(el){el.style.removeProperty("display");}})();"""
-                } else {
-                    // خبيه
-                    """(function(){var el=document.querySelector(".trip-note"); if(el){el.style.setProperty("display","none");}})();"""
-                }
-                webView.evaluateJavascript(js, null)
-
-                // (اختياري) سكريبتك القديم لإخفاء أزرار الحذف إن بغيتيه يبقى
-                val jsHideDanger = """
-                    (function () {
-                      function hideDangerButtons(){
-                        var keywords=["إزالة","حذف","Delete","Supprimer","Effacer"];
-                        var nodes=Array.from(document.querySelectorAll('button, a, [role="button"], .btn, .button'));
-                        nodes.forEach(function(el){
-                          var t=(el.innerText||el.textContent||"").trim().toLowerCase();
-                          for (var i=0;i<keywords.length;i++){
-                            if(t.includes(keywords[i].toLowerCase())){el.style.display="none"; el.setAttribute("data-masafir-hidden","true"); break;}
-                          }
-                        });
-                      }
-                      try{hideDangerButtons(); new MutationObserver(function(){hideDangerButtons();})
-                        .observe(document.documentElement,{childList:true,subtree:true});}catch(e){}
-                    })();
-                """.trimIndent()
-                webView.evaluateJavascript(jsHideDanger, null)
+                injectUiHelpers()
             }
         }
 
-        // حمّل الموقع
         webView.loadUrl(startUrl)
 
-        // زر الرجوع يتعامل داخل الويب فيو
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (webView.canGoBack()) webView.goBack() else finish()
             }
         })
-
-        // زر اتصال
-        btnCall.setOnClickListener {
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phoneNumber"))
-            startActivitySafe(intent, "ما قدرش يفتح تطبيق الاتصال")
-        }
-
-        // زر واتساب
-        btnWhatsapp.setOnClickListener {
-            val waUrl = "https://wa.me/$whatsappNumber"
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
-            startActivitySafe(intent, "ما لقيتش واتساب أو متصفح مناسب")
-        }
     }
 
-    private fun handleCustomSchemes(url: String): Boolean {
-        return when {
-            url.startsWith("tel:", true) -> {
-                startActivitySafe(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
-                true
-            }
-            url.startsWith("mailto:", true) -> {
-                startActivitySafe(Intent(Intent.ACTION_SENDTO, Uri.parse(url)))
-                true
-            }
-            url.startsWith("whatsapp:", true) ||
-            url.contains("wa.me", true) ||
-            url.contains("api.whatsapp.com", true) -> {
-                startActivitySafe(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                true
-            }
-            else -> false // خليه يفتح داخل WebView
-        }
-    }
+    private fun injectUiHelpers() {
+        val js = """
+            (function(){
+              // 🟦 helper
+              function byText(nodes, txt){
+                txt = txt.trim();
+                return Array.from(nodes).filter(function(el){
+                  var t = (el.innerText||el.textContent||"").trim();
+                  return t.indexOf(txt) !== -1;
+                });
+              }
 
-    private fun startActivitySafe(intent: Intent, noAppMsg: String = "لا يوجد تطبيق مناسب") {
-        try {
-            startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, noAppMsg, Toast.LENGTH_SHORT).show()
-        }
+              // 1) زيد زر واتساب حدّ "اتصال"
+              function addWhatsappNextToCall(){
+                var callEls = byText(document.querySelectorAll('a,button'), 'اتصال');
+                callEls.forEach(function(el){
+                  if(el.dataset.masafirWaAdded) return;
+                  var wa = document.createElement('a');
+                  wa.href = 'https://wa.me/${"$"}{whatsappNumber}';
+                  wa.innerText = 'واتساب';
+                  wa.style.marginInlineStart = '12px';
+                  wa.style.color = '#0a7c62';
+                  wa.style.textDecoration = 'none';
+                  // خليه يبان حد "اتصال"
+                  if(el.parentNode){
+                    el.parentNode.insertBefore(wa, el.nextSibling);
+                  }
+                  el.dataset.masafirWaAdded = '1';
+                });
+              }
+
+              // 2) خبي "رحلاتي" فالصفحة الرئيسية وبيّنها غير من بعد ما يضغط "البحث عن رحلة"
+              function toggleTripsSection(){
+                // حاول نلقاو أقرب كونتينر فيه عنوان "رحلاتي"
+                var tripsSection = null;
+                var candidates = Array.from(document.querySelectorAll('section,div'));
+                for (var i=0;i<candidates.length;i++){
+                  var t = (candidates[i].innerText||'').trim();
+                  if(t.indexOf('رحلاتي') !== -1) { tripsSection = candidates[i]; break; }
+                }
+                if(!tripsSection) return;
+
+                // واش سبق تفعّلت نتيجة البحث؟
+                if(!window.__masafirShowTrips){
+                  tripsSection.style.display = 'none';
+                } else {
+                  tripsSection.style.removeProperty('display');
+                }
+
+                // كبسة "البحث عن رحلة"
+                var searchBtn = byText(document.querySelectorAll('a,button'), 'البحث عن رحلة')[0];
+                if(searchBtn && !searchBtn.dataset.masafirHooked){
+                  searchBtn.addEventListener('click', function(){
+                    window.__masafirShowTrips = true;
+                    tripsSection.style.removeProperty('display');
+                  });
+                  searchBtn.dataset.masafirHooked = '1';
+                }
+              }
+
+              // شغّل الدوال لأول مرة
+              addWhatsappNextToCall();
+              toggleTripsSection();
+
+              // راقب تغييرات SPA باش نعاود نشغّلهم
+              try{
+                new MutationObserver(function(){
+                  addWhatsappNextToCall();
+                  toggleTripsSection();
+                }).observe(document.documentElement,{subtree:true,childList:true});
+              }catch(e){}
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js, null)
     }
 
     override fun onDestroy() {
