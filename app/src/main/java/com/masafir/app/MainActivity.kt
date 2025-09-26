@@ -14,13 +14,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
 
-    // بدّل بالدومين/الموقع ديالك
+    // غيّر هذا إلى الدومين/الموقع النهائي ديالك
     private val startUrl = "https://mellifluous-douhua-9377eb.netlify.app/"
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)   // layout فيه غير WebView@id/webview
+        setContentView(R.layout.activity_main) // layout فيه WebView@id/webview
 
         webView = findViewById(R.id.webview)
 
@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
         webView.webChromeClient = WebChromeClient()
 
-        // خلي الروابط الخاصة تفتح بتطبيقاتها
+        // خلي الروابط الخاصة تفتح بتطبيقاتها (tel/mailto/wa)
         webView.webViewClient = object : WebViewClient() {
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -54,17 +54,14 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
 
-                // 1) إضافة زر واتساب جنب أي tel:
+                // (1) أضف زر "واتساب" بجانب كل رابط tel:
                 val jsAddWhatsapp = """
                     (function(){
                       function normalize(num){
-                        // حيد أي شي ماشي رقم
                         var d = (num||"").replace(/\D/g,'');
-                        // إلى بدات بصفر مغربي، قلبها 212
                         if (d.length >= 10 && d[0] === '0') { d = '212' + d.substring(1); }
                         return d;
                       }
-                      // متدوزش جوج مرات
                       if (window.__masafir_wa_injected__) return;
                       window.__masafir_wa_injected__ = true;
 
@@ -90,55 +87,94 @@ class MainActivity : AppCompatActivity() {
                           a.dataset.masafirWaAdded = '1';
                         });
                       }
-                      // مرة دابا وراقب تغييرات DOM
-                      try { inject();
+                      try {
+                        inject();
                         new MutationObserver(inject).observe(document.documentElement,{childList:true,subtree:true});
-                      } catch(e) {}
+                      } catch(e){}
                     })();
                 """.trimIndent()
                 webView.evaluateJavascript(jsAddWhatsapp, null)
 
-                // 2) خبي "رحلاتي" حتى يضغط على "البحث عن رحلة"
-                // ملاحظة: إذا السلكتور ما طاحش، بدّل selectors فالسطرين اللي تحت
+                // (2) إخفاء "رحلاتي" دائمًا، وإظهارها فقط بعد الضغط على زر "بحث/بحت" أسفل فورم البحث
                 val jsTripsToggle = """
-                    (function(){
-                      try{
-                        var tripsHeader = Array.from(document.querySelectorAll('h1,h2,h3,h4'))
-                          .find(function(h){ return (h.innerText||'').trim().includes('رحلاتي'); });
-                        if (tripsHeader){
-                          var box = tripsHeader.closest('section') || tripsHeader.parentElement;
-                          if (box){ box.style.display = 'none'; window.__masafirTripsBox = box; }
+                  (function(){
+                    function findTripsBox(){
+                      var header = Array.from(document.querySelectorAll('h1,h2,h3,h4'))
+                        .find(function(h){ return ((h.innerText||'').trim().indexOf('رحلاتي') !== -1); });
+                      return header ? (header.closest('section') || header.parentElement) : null;
+                    }
+                    function hideTrips(){
+                      var box = findTripsBox();
+                      if (box){
+                        box.style.display = 'none';
+                        window.__masafirTripsBox = box;
+                        window.__masafirSearchDone = false;
+                      }
+                    }
+                    function showTrips(){
+                      var box = window.__masafirTripsBox || findTripsBox();
+                      if (box){
+                        box.style.display = '';
+                        window.__masafirSearchDone = true;
+                        try { box.scrollIntoView({behavior:'smooth', block:'start'}); } catch(e){}
+                      }
+                    }
+                    function isSearchExecuteButton(el){
+                      var t = (el.innerText || '').trim();
+                      var tokens = ['بحث','بحت','🔎','🔍'];
+                      var hasToken = tokens.some(function(tok){ return t.indexOf(tok) !== -1; });
+                      if (!hasToken) return false;
+                      return t !== 'البحث عن رحلة';
+                    }
+                    function wireButtons(){
+                      Array.from(document.querySelectorAll('button,a,input[type="submit"]')).forEach(function(b){
+                        if (!isSearchExecuteButton(b)) return;
+                        if (!b.dataset.masafirHook){
+                          b.dataset.masafirHook = '1';
+                          b.addEventListener('click', function(){ setTimeout(showTrips, 300); });
                         }
-                        var searchBtn = Array.from(document.querySelectorAll('button,a'))
-                          .find(function(b){ var t=(b.innerText||'').trim(); return t.includes('البحث عن رحلة'); });
-                        if (searchBtn && window.__masafirTripsBox){
-                          if (!searchBtn.dataset.masafirClick){
-                            searchBtn.dataset.masafirClick = '1';
-                            searchBtn.addEventListener('click', function(){
-                              try{ window.__masafirTripsBox.style.display = ''; }catch(e){}
-                            });
-                          }
+                      });
+                      var navLabels = ['أنشئ رحلة','انشئ رحلة','إنشاء رحلة','إنشئ رحلة','البحث عن رحلة'];
+                      var navBtns = Array.from(document.querySelectorAll('button,a'))
+                        .filter(function(b){ var t=(b.innerText||'').trim(); return navLabels.some(function(lbl){ return t.indexOf(lbl) !== -1; }); });
+                      navBtns.forEach(function(nb){
+                        if (!nb.dataset.masafirNav){
+                          nb.dataset.masafirNav = '1';
+                          nb.addEventListener('click', function(){ setTimeout(hideTrips, 300); });
                         }
-                      }catch(e){}
-                    })();
+                      });
+                    }
+                    hideTrips();
+                    wireButtons();
+                    try {
+                      new MutationObserver(function(){
+                        wireButtons();
+                        var box = findTripsBox();
+                        if (box && !window.__masafirSearchDone){
+                          box.style.display = 'none';
+                          window.__masafirTripsBox = box;
+                        }
+                      }).observe(document.documentElement,{childList:true,subtree:true});
+                    } catch(e){}
+                  })();
                 """.trimIndent()
                 webView.evaluateJavascript(jsTripsToggle, null)
 
-                // 3) (اختياري) إخفاء أزرار حذف/مسح
+                // (3) اختياري: إخفاء أزرار حذف/مسح
                 val jsHideDanger = """
-                    (function () {
-                      function run(){
-                        var words=["إزالة","حذف","Delete","Supprimer","Effacer"];
-                        var nodes=Array.from(document.querySelectorAll('button,a,[role="button"],.btn,.button'));
-                        nodes.forEach(function(el){
-                          var t=(el.innerText||el.textContent||"").trim().toLowerCase();
-                          for (var i=0;i<words.length;i++){
-                            if (t.includes(words[i].toLowerCase())) { el.style.display='none'; break; }
-                          }
-                        });
-                      }
-                      try{ run(); new MutationObserver(run).observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
-                    })();
+                  (function () {
+                    function run(){
+                      var words=["إزالة","حذف","Delete","Supprimer","Effacer"];
+                      var nodes=Array.from(document.querySelectorAll('button,a,[role="button"],.btn,.button'));
+                      nodes.forEach(function(el){
+                        var t=(el.innerText||el.textContent||"").trim().toLowerCase();
+                        for (var i=0;i<words.length;i++){
+                          if (t.includes(words[i].toLowerCase())) { el.style.display='none'; break; }
+                        }
+                      });
+                    }
+                    try{ run(); new MutationObserver(run).observe(document.documentElement,{childList:true,subtree:true}); }catch(e){}
+                  })();
                 """.trimIndent()
                 webView.evaluateJavascript(jsHideDanger, null)
             }
