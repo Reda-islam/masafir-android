@@ -18,7 +18,7 @@ jobs:
       KEY_ALIAS:        ${{ secrets.KEY_ALIAS }}
 
     steps:
-      # 1) جِب الكود
+      # 1) جِبّ الكود
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -33,7 +33,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # 4) رجع keystore من Base64 إلى ملف فعلي داخل app/release-keystore.jks
+      # 4) رجّع keystore من Base64 إلى ملف فعلي داخل app/release-keystore.jks
       - name: Restore keystore from BASE64
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
@@ -41,7 +41,7 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # تشديد صلاحيات الملف (اختياري)
+      # (اختياري) تشديد صلاحيات الملف
       - name: Secure keystore permissions
         run: chmod 600 app/release-keystore.jks
 
@@ -51,7 +51,7 @@ jobs:
         with:
           gradle-version: 8.8
 
-      # 6) بناء Debug APK (اختياري – يساعد تتأكد أن كلشي خدام)
+      # 6) بناء Debug (اختياري — يساعد نتأكد أن كلشي خدام)
       - name: Build Debug APK
         run: gradle :app:assembleDebug --stacktrace
 
@@ -59,7 +59,7 @@ jobs:
       - name: Build Release (APK & AAB)
         run: |
           gradle :app:assembleRelease --stacktrace
-          gradle :app:bundleRelease --stacktrace
+          gradle :app:bundleRelease   --stacktrace
 
       # 8) رفع المخرجات كـ artifacts
       - name: Upload build artifacts
