@@ -1,73 +1,97 @@
 package com.masafir.app
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
-import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
 
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        webView = findViewById(R.id.webView)
-        val btnCall: Button = findViewById(R.id.btnCall)
-        val btnWhatsApp: Button = findViewById(R.id.btnWhatsApp)
+        webView = WebView(this)
+        setContentView(webView)
 
         // إعدادات WebView
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
+            loadsImagesAutomatically = true
+            allowFileAccess = true
+            databaseEnabled = true
+            cacheMode = WebSettings.LOAD_DEFAULT
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
-        webView.webChromeClient = WebChromeClient()
+
+        // إبقاء التصفح داخل WebView
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                val url = request?.url.toString()
-                return when {
-                    url.startsWith("tel:") -> {
-                        startActivity(Intent(Intent.ACTION_DIAL, Uri.parse(url)))
-                        true
-                    }
-                    url.contains("wa.me") || url.contains("whatsapp") -> {
-                        try {
-                            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                        } catch (e: ActivityNotFoundException) {
-                            Toast.makeText(this@MainActivity, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
-                        }
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }
-        webView.loadUrl("https://masafir.ma")
 
-        // زر الاتصال
-        btnCall.setOnClickListener {
-            val phone = "+212600000000" // ✏️ بدّل هذا الرقم برقمك
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
-            startActivity(intent)
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+
+                // سكريبت لإخفاء أزرار الحذف بعد التحميل وأثناء تغيّر الـ DOM
+                val js = """
+                    (function () {
+                      function hideDangerButtons() {
+                        var keywords = ["حذف","إزالة","Delete","Supprimer","Effacer"];
+                        var nodes = Array.from(document.querySelectorAll('button, a, [role="button"], .btn, .button'));
+                        nodes.forEach(function(el){
+                          var t = ((el.innerText || el.textContent || "") + "").trim().toLowerCase();
+                          for (var i=0; i<keywords.length; i++){
+                            if (t.includes(keywords[i].toLowerCase())) {
+                              el.style.display = "none";
+                              el.setAttribute("data-masafir-hidden","true");
+                              break;
+                            }
+                          }
+                        });
+                      }
+
+                      hideDangerButtons();
+
+                      // لو الصفحة كتبدّل المحتوى (SPA)، نراقبو تغييرات الـ DOM ونعيد الإخفاء
+                      try {
+                        var obs = new MutationObserver(function(){ hideDangerButtons(); });
+                        obs.observe(document.documentElement, {childList:true, subtree:true});
+                      } catch(e) {}
+                    })();
+                """.trimIndent()
+
+                webView.evaluateJavascript(js, null)
+            }
+
+            // خليه يفتح الروابط داخل نفس الويب فيو
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean = false
         }
 
-        // زر واتساب
-        btnWhatsApp.setOnClickListener {
-            val phone = "+212600000000" // ✏️ بدّل هذا الرقم برقمك
-            val url = "https://wa.me/${phone.replace("+", "")}"
-            try {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            } catch (e: ActivityNotFoundException) {
-                Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
+        // لدعم JS dialogs الخ...
+        webView.webChromeClient = WebChromeClient()
+
+        // 🔷 دومين نتلايفي ديالك
+        webView.loadUrl("https://mellifluous-douhua-9377eb.netlify.app/")
+
+        // رجوع للخلف داخل الويب فيو
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) webView.goBack() else finish()
             }
-        }
+        })
+    }
+
+    override fun onDestroy() {
+        webView.destroy()
+        super.onDestroy()
     }
 }
